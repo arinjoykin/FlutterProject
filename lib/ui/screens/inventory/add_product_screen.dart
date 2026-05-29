@@ -8,6 +8,7 @@ import '../../../core/validators.dart';
 import '../../../data/models/product.dart';
 import '../../../logic/providers.dart';
 import 'product_detail_screen.dart';
+import '../../../data/models/user.dart';
 
 class AddProductScreen extends ConsumerStatefulWidget {
   const AddProductScreen({super.key});
@@ -48,10 +49,10 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
             );
 
     if (product != null && mounted) {
-      // ignore: use_build_context_synchronously
-      Navigator.of(
-        context,
-      ).pushReplacementNamed(ProductDetailScreen.routeName, arguments: product);
+      Navigator.of(context).pushReplacementNamed(
+        ProductDetailScreen.routeName,
+        arguments: product,
+      );
     }
   }
 
@@ -63,6 +64,38 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final authState = ref.watch(authControllerProvider);
+    final canManage = authState.currentUser?.role.canManageProducts ?? false;
+
+    if (!canManage) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Добавить товар')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.lock_outline, size: 64, color: Colors.grey),
+              const SizedBox(height: 16),
+              const Text(
+                'У вас нет прав на создание товаров',
+                style: TextStyle(fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'Только администраторы могут добавлять товары',
+                style: TextStyle(color: Colors.grey),
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text('Назад'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     final state = ref.watch(addProductControllerProvider);
 
     return Scaffold(

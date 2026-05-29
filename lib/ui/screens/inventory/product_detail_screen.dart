@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../data/models/product.dart';
+import '../../../data/models/user.dart';
 import '../../../logic/providers.dart';
 import 'edit_product_screen.dart';
 
@@ -13,8 +14,14 @@ class ProductDetailScreen extends ConsumerWidget {
 
   final Product product;
 
+  String _formatDateTime(DateTime dateTime) {
+    return '${dateTime.day}.${dateTime.month}.${dateTime.year} ${dateTime.hour.toString().padLeft(2, '0')}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final isAdmin = authState.currentUser?.role == UserRole.admin;
     final statusColor =
         product.status == ProductStatus.free ? Colors.green : Colors.orange;
     final statusText =
@@ -29,51 +36,53 @@ class ProductDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         title: Text(product.name),
         actions: [
-          IconButton(
-            tooltip: 'Редактировать',
-            onPressed: () {
-              Navigator.of(context).pushNamed(
-                EditProductScreen.routeName,
-                arguments: product,
-              );
-            },
-            icon: const Icon(Icons.edit),
-          ),
-          IconButton(
-            tooltip: 'Удалить',
-            onPressed: () async {
-              final confirm = await showDialog<bool>(
-                context: context,
-                builder: (ctx) {
-                  return AlertDialog(
-                    title: const Text('Удалить товар?'),
-                    content: Text(
-                        'Вы действительно хотите удалить «${product.name}»?'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.of(ctx).pop(false),
-                        child: const Text('Отмена'),
-                      ),
-                      FilledButton(
-                        onPressed: () => Navigator.of(ctx).pop(true),
-                        child: const Text('Удалить'),
-                      ),
-                    ],
-                  );
-                },
-              );
-              if (confirm == true) {
-                await ref
-                    .read(productRepositoryProvider)
-                    .deleteProduct(product.id);
-                // ignore: use_build_context_synchronously
-                Navigator.of(context).pop(); // close detail
-                // trigger list refresh if present
-                ref.read(productListControllerProvider.notifier).load();
-              }
-            },
-            icon: const Icon(Icons.delete_outline),
-          ),
+          if (isAdmin)
+            IconButton(
+              tooltip: 'Редактировать',
+              onPressed: () {
+                Navigator.of(context).pushNamed(
+                  EditProductScreen.routeName,
+                  arguments: product,
+                );
+              },
+              icon: const Icon(Icons.edit),
+            ),
+          if (isAdmin)
+            IconButton(
+              tooltip: 'Удалить',
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) {
+                    return AlertDialog(
+                      title: const Text('Удалить товар?'),
+                      content: Text(
+                          'Вы действительно хотите удалить «${product.name}»?'),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(false),
+                          child: const Text('Отмена'),
+                        ),
+                        FilledButton(
+                          onPressed: () => Navigator.of(ctx).pop(true),
+                          child: const Text('Удалить'),
+                        ),
+                      ],
+                    );
+                  },
+                );
+                if (confirm == true) {
+                  // ИСПРАВЛЕНО: убрали .future
+                  final repo = ref.read(productRepositoryProvider);
+                  await repo.deleteProduct(product.id);
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ref.read(productListControllerProvider.notifier).load();
+                  }
+                }
+              },
+              icon: const Icon(Icons.delete_outline),
+            ),
         ],
       ),
       body: ListView(
@@ -120,6 +129,13 @@ class ProductDetailScreen extends ConsumerWidget {
                             Icon(Icons.circle, size: 10, color: statusColor),
                         label: Text(statusText),
                       ),
+                      if (product.status == ProductStatus.occupied &&
+                          product.takenByUserId != null)
+                        Chip(
+                          avatar: const Icon(Icons.person, size: 16),
+                          label: Text(
+                              'Занял ID: ${product.takenByUserId!.substring(0, 8)}...'),
+                        ),
                       Chip(
                         avatar: const Icon(Icons.qr_code_2, size: 16),
                         label: Text('ID: ${product.id.substring(0, 10)}...'),
@@ -179,6 +195,24 @@ class ProductDetailScreen extends ConsumerWidget {
               ),
             ),
           ),
+          if (product.status == ProductStatus.occupied &&
+              product.takenAt != null)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Информация о выдаче',
+                      style: Theme.of(context).textTheme.titleMedium,
+                    ),
+                    const SizedBox(height: 8),
+                    Text('Взят: ${_formatDateTime(product.takenAt!)}'),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

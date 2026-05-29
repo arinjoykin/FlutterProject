@@ -35,27 +35,48 @@ class ProductListState {
 class ProductListController extends StateNotifier<ProductListState> {
   ProductListController(this._repo) : super(const ProductListState());
 
-  final ProductRepository _repo;
+  factory ProductListController.fromFuture(Future<ProductRepository> repoFuture) {
+    final controller = ProductListController._(null);
+    repoFuture.then((repo) {
+      controller._repo = repo;
+      controller.load();
+    }).catchError((error) {
+      controller.state = controller.state.copyWith(
+        isLoading: false,
+        errorMessage: 'Ошибка загрузки базы данных',
+      );
+    });
+    return controller;
+  }
+
+  ProductListController._(ProductRepository? repo) : _repo = repo, super(const ProductListState());
+
+  ProductRepository? _repo;
 
   Future<void> load() async {
+    if (_repo == null) return;
+    
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final items = _sortItems(await _repo.fetchProducts(), state.sortOrder);
-      state =
-          state.copyWith(items: items, isLoading: false, errorMessage: null);
-    } catch (_) {
+      final items = _sortItems(await _repo!.fetchProducts(), state.sortOrder);
+      state = state.copyWith(items: items, isLoading: false);
+    } catch (e) {
       state = state.copyWith(
-          isLoading: false, errorMessage: 'Не удалось загрузить товары');
+        isLoading: false,
+        errorMessage: 'Не удалось загрузить товары',
+      );
     }
   }
 
   Future<void> removeById(String id) async {
+    if (_repo == null) return;
+    
     try {
-      await _repo.deleteProduct(id);
+      await _repo!.deleteProduct(id);
       final updated = List<Product>.from(state.items)
         ..removeWhere((p) => p.id == id);
       state = state.copyWith(items: updated);
-    } catch (_) {}
+    } catch (e) {}
   }
 
   void setSortOrder(ProductSortOrder order) {

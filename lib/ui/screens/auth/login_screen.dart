@@ -30,6 +30,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     final auth = ref.read(authControllerProvider.notifier);
+
+    if (_passwordCtrl.text.isEmpty) {
+      print('Пароль пустой');
+      return;
+    }
+
+    print('Попытка входа: ${_emailCtrl.text} / ${_passwordCtrl.text}');
     await auth.login(
         email: _emailCtrl.text.trim(), password: _passwordCtrl.text);
     final state = ref.read(authControllerProvider);
@@ -101,7 +108,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                   prefixIcon: Icon(Icons.lock_outline),
                                 ),
                                 obscureText: true,
-                                validator: Validators.password,
+                                validator: (v) =>
+                                    Validators.password(v, minLen: 3),
                               ),
                               const SizedBox(height: 16),
                               if (authState.errorMessage != null)
@@ -137,6 +145,43 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               ),
                             ],
                           ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Card(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withValues(alpha: 0.5),
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: Column(
+                          children: [
+                            Text(
+                              'Тестовые учетные записи:',
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'admin@example.com / admin123 (админ)',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontFamily: 'monospace',
+                                  ),
+                            ),
+                            Text(
+                              'user@example.com / user123 (пользователь)',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    fontFamily: 'monospace',
+                                  ),
+                            ),
+                          ],
                         ),
                       ),
                     ),

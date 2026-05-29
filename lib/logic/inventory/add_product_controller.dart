@@ -24,7 +24,22 @@ class AddProductState {
 
 class AddProductController extends StateNotifier<AddProductState> {
   AddProductController(this._repo) : super(const AddProductState());
-  final ProductRepository _repo;
+
+  factory AddProductController.fromFuture(Future<ProductRepository> repoFuture) {
+    final controller = AddProductController._(null);
+    repoFuture.then((repo) {
+      controller._repo = repo;
+    }).catchError((error) {
+      controller.state = controller.state.copyWith(
+        errorMessage: 'Ошибка загрузки базы данных',
+      );
+    });
+    return controller;
+  }
+
+  AddProductController._(ProductRepository? repo) : _repo = repo, super(const AddProductState());
+
+  ProductRepository? _repo;
 
   Future<Product?> submit({
     required String name,
@@ -33,9 +48,14 @@ class AddProductController extends StateNotifier<AddProductState> {
     required String imageUrl,
     required ProductStatus status,
   }) async {
+    if (_repo == null) {
+      state = state.copyWith(errorMessage: 'База данных не инициализирована');
+      return null;
+    }
+    
     state = state.copyWith(isSubmitting: true, errorMessage: null);
     try {
-      final product = await _repo.createProduct(
+      final product = await _repo!.createProduct(
         name: name,
         shortDescription: shortDescription,
         description: description,
@@ -44,9 +64,11 @@ class AddProductController extends StateNotifier<AddProductState> {
       );
       state = const AddProductState(isSubmitting: false);
       return product;
-    } catch (_) {
+    } catch (e) {
       state = state.copyWith(
-          isSubmitting: false, errorMessage: 'Не удалось создать товар');
+        isSubmitting: false,
+        errorMessage: 'Не удалось создать товар',
+      );
       return null;
     }
   }

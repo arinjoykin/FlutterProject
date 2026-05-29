@@ -90,7 +90,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                               prefixIcon: Icon(Icons.lock_outline),
                             ),
                             obscureText: true,
-                            validator: Validators.password,
+                            validator: (v) => Validators.password(v, minLen: 3),
                           ),
                           const SizedBox(height: 12),
                           TextFormField(

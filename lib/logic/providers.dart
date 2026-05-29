@@ -5,26 +5,30 @@ import 'auth/auth_controller.dart';
 import 'inventory/product_list_controller.dart';
 import 'inventory/add_product_controller.dart';
 
+// Провайдер для AuthRepository (теперь синхронный!)
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-	return AuthRepository();
+  return AuthRepository();
 });
 
+// Провайдер для ProductRepository
 final productRepositoryProvider = Provider<ProductRepository>((ref) {
-	return ProductRepository();
+  return ProductRepository();
 });
 
-final authControllerProvider =
-	StateNotifierProvider<AuthController, AuthState>((ref) {
-	final repo = ref.watch(authRepositoryProvider);
-	return AuthController(repo);
+// Провайдер для AuthController
+final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
+  final repo = ref.watch(authRepositoryProvider);
+  return AuthController(repo);
 });
 
+// Провайдер для ProductListController
 final productListControllerProvider = StateNotifierProvider<ProductListController, ProductListState>((ref) {
-	final repo = ref.watch(productRepositoryProvider);
-	return ProductListController(repo)..load();
+  final repo = ref.watch(productRepositoryProvider);
+  return ProductListController(repo)..load();
 });
 
+// Провайдер для AddProductController
 final addProductControllerProvider = StateNotifierProvider<AddProductController, AddProductState>((ref) {
-	final repo = ref.watch(productRepositoryProvider);
-	return AddProductController(repo);
+  final repo = ref.watch(productRepositoryProvider);
+  return AddProductController(repo);
 });

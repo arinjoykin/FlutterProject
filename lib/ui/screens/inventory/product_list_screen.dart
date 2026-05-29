@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../logic/providers.dart';
 import '../../../data/models/product.dart';
+import '../../../data/models/user.dart';
 import '../../../logic/inventory/product_list_controller.dart';
 import 'product_detail_screen.dart';
 import 'add_product_screen.dart';
@@ -16,6 +17,8 @@ class ProductListScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(productListControllerProvider);
+    final authState = ref.watch(authControllerProvider);
+    final isAdmin = authState.currentUser?.role == UserRole.admin;
     final sortTitle = state.sortOrder == ProductSortOrder.nameAsc
         ? 'Сортировка: А -> Я'
         : 'Сортировка: Я -> А';
@@ -50,6 +53,59 @@ class ProductListScreen extends ConsumerWidget {
               Navigator.of(context).pushNamed(ScanQrScreen.routeName);
             },
             icon: const Icon(Icons.qr_code_scanner),
+          ),
+          if (isAdmin)
+            IconButton(
+              tooltip: 'Добавить товар',
+              onPressed: () async {
+                await Navigator.of(context).pushNamed(AddProductScreen.routeName);
+                ref.read(productListControllerProvider.notifier).load();
+              },
+              icon: const Icon(Icons.add),
+            ),
+          PopupMenuButton<String>(
+            tooltip: 'Профиль',
+            onSelected: (value) {
+              if (value == 'logout') {
+                ref.read(authControllerProvider.notifier).logout();
+                Navigator.of(context).pushReplacementNamed('/login');
+              }
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                enabled: false,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(authState.currentUser?.name ?? 'Пользователь'),
+                    const SizedBox(height: 4),
+                    Text(
+                      authState.currentUser?.email ?? '',
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                    const Divider(),
+                    Text(
+                      isAdmin ? 'Администратор' : 'Пользователь',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: isAdmin ? Colors.green : Colors.blue,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout),
+                    SizedBox(width: 8),
+                    Text('Выйти'),
+                  ],
+                ),
+              ),
+            ],
+            icon: const Icon(Icons.person),
           ),
         ],
       ),
@@ -102,16 +158,16 @@ class ProductListScreen extends ConsumerWidget {
           },
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.of(context).pushNamed(AddProductScreen.routeName);
-          // Refresh list to include newly added
-          // ignore: use_build_context_synchronously
-          ref.read(productListControllerProvider.notifier).load();
-        },
-        icon: const Icon(Icons.add),
-        label: const Text('Добавить'),
-      ),
+      floatingActionButton: isAdmin
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                await Navigator.of(context).pushNamed(AddProductScreen.routeName);
+                ref.read(productListControllerProvider.notifier).load();
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Добавить'),
+            )
+          : null,
     );
   }
 }
@@ -122,10 +178,8 @@ class _ProductListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor =
-        product.status == ProductStatus.free ? Colors.green : Colors.orange;
-    final statusText =
-        product.status == ProductStatus.free ? 'Свободен' : 'Занят';
+    final statusColor = product.status == ProductStatus.free ? Colors.green : Colors.orange;
+    final statusText = product.status == ProductStatus.free ? 'Свободен' : 'Занят';
     return Card(
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
@@ -244,22 +298,25 @@ class _ProductListItem extends StatelessWidget {
             const SizedBox(width: 8),
             Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    tooltip: 'Редактировать',
-                    icon: const Icon(Icons.edit),
-                    onPressed: () {
-                      Navigator.of(context).pushNamed(
-                        EditProductScreen.routeName,
-                        arguments: product,
-                      );
-                    },
-                  ),
-                  Consumer(
-                    builder: (context, ref, _) {
-                      return IconButton(
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final authState = ref.watch(authControllerProvider);
+                  final isAdmin = authState.currentUser?.role == UserRole.admin;
+                  if (!isAdmin) return const SizedBox.shrink();
+                  return Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      IconButton(
+                        tooltip: 'Редактировать',
+                        icon: const Icon(Icons.edit),
+                        onPressed: () {
+                          Navigator.of(context).pushNamed(
+                            EditProductScreen.routeName,
+                            arguments: product,
+                          );
+                        },
+                      ),
+                      IconButton(
                         tooltip: 'Удалить',
                         icon: const Icon(Icons.delete_outline),
                         onPressed: () async {
@@ -291,10 +348,10 @@ class _ProductListItem extends StatelessWidget {
                                 .removeById(product.id);
                           }
                         },
-                      );
-                    },
-                  ),
-                ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ],
