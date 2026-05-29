@@ -230,6 +230,70 @@ class ProductRepository {
           DateTime.fromMillisecondsSinceEpoch(entity['updated_at'] as int),
     );
   }
+
+  // Синхронизация из облака при запуске
+  Future<void> syncFromCloud() async {
+    print('🔄 Синхронизация из облака...');
+    try {
+      final cloudProducts = await firestoreService.fetchAllProducts();
+      for (final product in cloudProducts) {
+        // Проверяем, есть ли уже такой товар
+        final existing = await dbHelper.getProductById(product['id']);
+        if (existing == null) {
+          // Если нет - сохраняем
+          await dbHelper.insertProduct({
+            'id': product['id'],
+            'name': product['name'],
+            'short_description': product['shortDescription'] ?? '',
+            'description': product['description'] ?? '',
+            'image_url': product['imageUrl'] ?? '',
+            'status': product['status'] ?? 'free',
+            'taken_by_user_id': product['takenByUserId'],
+            'taken_at': product['takenAt'],
+            'created_at': product['createdAt']?.millisecondsSinceEpoch ??
+                DateTime.now().millisecondsSinceEpoch,
+            'updated_at': product['updatedAt']?.millisecondsSinceEpoch ??
+                DateTime.now().millisecondsSinceEpoch,
+          });
+          print('📥 Загружен из облака: ${product['name']}');
+        }
+      }
+      print('✅ Синхронизация завершена!');
+    } catch (e) {
+      print('❌ Ошибка синхронизации: $e');
+    }
+  }
+
+// Загрузить товары из Firestore
+  Future<List<Product>> loadFromFirestore() async {
+    try {
+      print('🔄 Загружаем из Firestore...');
+      final productsData = await firestoreService.fetchAllProducts();
+      print('✅ Получено ${productsData.length} товаров из Firestore');
+
+      return productsData.map((data) {
+        return Product(
+          id: data['id'] ?? '',
+          name: data['name'] ?? 'Без названия',
+          shortDescription: data['shortDescription'] ?? '',
+          description: data['description'] ?? '',
+          imageUrl: data['imageUrl'] ?? '',
+          status: data['status'] == 'free'
+              ? ProductStatus.free
+              : ProductStatus.occupied,
+          takenByUserId: data['takenByUserId'],
+          takenAt: data['takenAt'] != null
+              ? DateTime.fromMillisecondsSinceEpoch(data['takenAt'] as int)
+              : null,
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        );
+      }).toList();
+    } catch (e) {
+      print('❌ Ошибка загрузки из Firestore: $e');
+      return []; // Возвращаем пустой список при ошибке
+    }
+  }
 }
 
 class ProductException implements Exception {

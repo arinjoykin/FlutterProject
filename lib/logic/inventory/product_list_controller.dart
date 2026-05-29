@@ -35,32 +35,17 @@ class ProductListState {
 class ProductListController extends StateNotifier<ProductListState> {
   ProductListController(this._repo) : super(const ProductListState());
 
-  factory ProductListController.fromFuture(Future<ProductRepository> repoFuture) {
-    final controller = ProductListController._(null);
-    repoFuture.then((repo) {
-      controller._repo = repo;
-      controller.load();
-    }).catchError((error) {
-      controller.state = controller.state.copyWith(
-        isLoading: false,
-        errorMessage: 'Ошибка загрузки базы данных',
-      );
-    });
-    return controller;
-  }
-
-  ProductListController._(ProductRepository? repo) : _repo = repo, super(const ProductListState());
-
-  ProductRepository? _repo;
+  final ProductRepository _repo;
 
   Future<void> load() async {
-    if (_repo == null) return;
-    
     state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      final items = _sortItems(await _repo!.fetchProducts(), state.sortOrder);
+      print('🔄 Контроллер: начинаем загрузку...');
+      final items = await _repo.loadFromFirestore();
+      print('✅ Контроллер: загружено ${items.length} товаров');
       state = state.copyWith(items: items, isLoading: false);
     } catch (e) {
+      print('❌ Контроллер: ошибка загрузки: $e');
       state = state.copyWith(
         isLoading: false,
         errorMessage: 'Не удалось загрузить товары',
@@ -69,10 +54,8 @@ class ProductListController extends StateNotifier<ProductListState> {
   }
 
   Future<void> removeById(String id) async {
-    if (_repo == null) return;
-    
     try {
-      await _repo!.deleteProduct(id);
+      await _repo.deleteProduct(id);
       final updated = List<Product>.from(state.items)
         ..removeWhere((p) => p.id == id);
       state = state.copyWith(items: updated);

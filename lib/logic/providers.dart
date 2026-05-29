@@ -16,19 +16,21 @@ final productRepositoryProvider = Provider<ProductRepository>((ref) {
 });
 
 // Провайдер для AuthController
-final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
+final authControllerProvider =
+    StateNotifierProvider<AuthController, AuthState>((ref) {
   final repo = ref.watch(authRepositoryProvider);
   return AuthController(repo);
 });
 
-// Провайдер для ProductListController
-final productListControllerProvider = StateNotifierProvider<ProductListController, ProductListState>((ref) {
-  final repo = ref.watch(productRepositoryProvider);
+final productListControllerProvider =
+    StateNotifierProvider<ProductListController, ProductListState>((ref) {
+  final repo = ProductRepository(); // <--- СИНХРОННО, НЕ Future
   return ProductListController(repo)..load();
 });
 
 // Провайдер для AddProductController
-final addProductControllerProvider = StateNotifierProvider<AddProductController, AddProductState>((ref) {
+final addProductControllerProvider =
+    StateNotifierProvider<AddProductController, AddProductState>((ref) {
   final repo = ref.watch(productRepositoryProvider);
   return AddProductController(repo);
 });

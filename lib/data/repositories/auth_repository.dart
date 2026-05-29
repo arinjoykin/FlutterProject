@@ -11,22 +11,27 @@ class AuthRepository {
     required String password,
     UserRole role = UserRole.user,
   }) async {
+    // Проверяем, существует ли пользователь
     final existingUser = await dbHelper.getUserByEmail(email.toLowerCase());
 
     if (existingUser != null) {
       throw AuthException('Пользователь с таким email уже существует');
     }
 
+    // Создаём нового пользователя
     final user = {
       'id': const Uuid().v4(),
       'name': name.trim(),
       'email': email.trim().toLowerCase(),
-      'password_hash': password,
+      'password_hash': password, // Сохраняем пароль
       'role': role.stringValue,
       'created_at': DateTime.now().millisecondsSinceEpoch,
     };
 
     await dbHelper.insertUser(user);
+
+    print(
+        '✅ Зарегистрирован пользователь: ${user['email']} (${role.displayName})');
 
     return UserAccount(
       id: user['id'] as String,
@@ -41,15 +46,19 @@ class AuthRepository {
     required String email,
     required String password,
   }) async {
+    // Ищем пользователя по email
     final user = await dbHelper.getUserByEmail(email.trim().toLowerCase());
 
     if (user == null) {
-      throw AuthException('Неверный email или пароль');
+      throw AuthException('Пользователь с таким email не найден');
     }
 
-    if (password.isEmpty || user['password_hash'] != password) {
-      throw AuthException('Неверный email или пароль');
+    // Проверяем пароль
+    if (user['password_hash'] != password) {
+      throw AuthException('Неверный пароль');
     }
+
+    print('✅ Вход выполнен: ${user['email']}');
 
     return UserAccount(
       id: user['id'] as String,
